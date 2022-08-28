@@ -15,6 +15,11 @@ class WatchLand{
     // Cloud provider to be in use 
     private provider:AWSCloud.AwsClient|AzureCloud.AzureClient|GoogleCloud.GoogleCloudClient
 
+    /**
+     * 
+     * @param provider Cloud provider to use AWS, Azure or Google Cloud
+     * @param config Configuration options for the cloud provider
+     */
     constructor(provider:CloudProvider, config:any){
         this.provider = new this.providers[provider](config);
     }
@@ -25,7 +30,12 @@ class WatchLand{
      * Returns all log groups
      */
     async groups(limit:number = 25):Promise<any[]>{
-        const groups = await this.provider.listGroups(limit) as []
+        const groups = await this.provider.listGroups() as []
         return groups
+    }
+
+    async streams(group:string):Promise<any[]>{
+        const streams = await this.provider.listStreams(group) as []
+        return streams
     }
 }

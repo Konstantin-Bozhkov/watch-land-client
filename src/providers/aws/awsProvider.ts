@@ -16,23 +16,49 @@ export namespace AWSCloud{
             this.cw = new AWS.CloudWatchLogs()
         }
 
-        async listGroups(limit:number, nextToken:string = ''):Promise<any[]>{
-            let params:AWS.CloudWatchLogs.DescribeLogGroupsRequest = {
-                "limit": limit              
+        async listGroups(prefix:string = ''):Promise<any[]>{
+            const params:AWS.CloudWatchLogs.DescribeLogGroupsRequest = {
+                limit:50
             }
-            // Add nextToken key to the params if supplied
-            if(nextToken != '') params.nextToken = nextToken;
-
+            if(prefix != '') params.logGroupNamePrefix = prefix;
+            const groups = this._fetchGroups(params)
+            return groups
+        }
+        
+        private async _fetchGroups(params: AWS.CloudWatchLogs.DescribeLogGroupsRequest){
             let awslogGroups = await this.cw.describeLogGroups(params).promise()
-            let keys = Object.keys(awslogGroups);  
-            
             let groups:AWS.CloudWatchLogs.LogGroup[] = [].concat(awslogGroups.logGroups as []);
-            
+            let keys = Object.keys(awslogGroups);
             // Keep calling list groups untill all groups are fetched
             if(keys.includes('nextToken')){
-                groups = groups.concat( await this.listGroups(limit, awslogGroups.nextToken))
+                params.nextToken = awslogGroups.nextToken;
+                groups = groups.concat( await this._fetchGroups(params))
             }
             return groups
         }
+
+        async listStreams(group:string, prefix:string = ''){
+            const params:AWS.CloudWatchLogs.DescribeLogStreamsRequest = {
+                logGroupName: group, /* required */
+                descending: true,
+            };
+            // Add the stream prefix if passed as argument
+            if(prefix != '') params.logStreamNamePrefix = prefix;
+            const streams = this._fetchStreams(params)
+            return streams
+        }
+
+        private async _fetchStreams(params: AWS.CloudWatchLogs.DescribeLogStreamsRequest){
+            let awsStreams = await this.cw.describeLogStreams(params).promise()
+            let streams:AWS.CloudWatchLogs.LogGroup[] = [].concat(awsStreams.logStreams as []);
+            let keys = Object.keys(awsStreams);
+            // Keep fetching the streams untill all streams are fetched
+            if(keys.includes('nextToken')){
+                params.nextToken = awsStreams.nextToken;
+                streams = streams.concat( await this._fetchStreams(params))
+            }
+            return streams
+        }
+
     }
 }

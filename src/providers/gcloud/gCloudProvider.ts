@@ -5,7 +5,10 @@ export namespace GoogleCloud{
         
         constructor(){ }
 
-        async listGroups(limit:number, next:string = ''):Promise<any[]>{
+        async listGroups(prefix:string = ''):Promise<any[]>{
+            return []
+        }
+        async listStreams(prefix:string = ''):Promise<any[]>{
             return []
         }
     }
