@@ -3,6 +3,7 @@ import { HTTPOptions } from "aws-sdk/lib/config-base"
 export interface ICloudClient{
     listGroups(prefix?:string):Promise<any[]>
     listStreams(prefix?:string):Promise<any[]>
+    listLogEvents(group:string, streams:string[], filters?:ILogsFilter, next?:string|undefined):any
 }
 export interface IAWSConfigOptions{
     profile?: string
@@ -15,4 +16,10 @@ export interface IAWSConfigOptions{
 export interface IAwsConfig{
     credentials?:IAWSConfigOptions
     options?:AWS.ConfigurationOptions
+}
+export interface ILogsFilter{
+    limit?:number|undefined
+    start?:number|undefined
+    end?:number|undefined
+    pattern?:string|undefined
 }

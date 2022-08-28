@@ -1,6 +1,7 @@
 import { AWSCloud } from "./providers/aws/awsProvider";
 import { AzureCloud } from "./providers/azure/azureProvider";
 import { GoogleCloud } from "./providers/gcloud/gCloudProvider";
+import { IAwsConfig, ILogsFilter } from "./providers/specs";
 import { CloudProvider } from "./specs";
 
 class WatchLand{
@@ -20,7 +21,7 @@ class WatchLand{
      * @param provider Cloud provider to use AWS, Azure or Google Cloud
      * @param config Configuration options for the cloud provider
      */
-    constructor(provider:CloudProvider, config:any){
+    constructor(provider:CloudProvider.AWS, config:IAwsConfig){
         this.provider = new this.providers[provider](config);
     }
 
@@ -34,8 +35,22 @@ class WatchLand{
         return groups
     }
 
+    /**
+     * 
+     * @param group Group name
+     * @returns 
+     */
     async streams(group:string):Promise<any[]>{
         const streams = await this.provider.listStreams(group) as []
         return streams
+    }
+    
+    /**
+     * 
+     * @param group Group name
+     * @param stream Stream name
+     */
+     async *logs(group:string, streams:string[], filters?:ILogsFilter):any{
+        yield* this.provider.listLogEvents(group, streams, { ...filters })
     }
 }
