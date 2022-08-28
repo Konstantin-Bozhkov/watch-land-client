@@ -1,9 +1,8 @@
-// export interface ICloudProvider{
-//     listGroups()
-// }
-
 import { HTTPOptions } from "aws-sdk/lib/config-base"
 
+export interface ICloudClient{
+    listGroups(limit:number, next?:string):Promise<any[]>
+}
 export interface IAWSConfigOptions{
     profile?: string
     filename?: string

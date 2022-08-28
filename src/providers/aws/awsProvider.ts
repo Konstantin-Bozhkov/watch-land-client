@@ -1,8 +1,8 @@
 import * as AWS from 'aws-sdk';
-import { IAwsConfig } from '../specs';
+import { IAwsConfig, ICloudClient } from '../specs';
 export namespace AWSCloud{
     
-    export class AwsClient{
+    export class AwsClient implements ICloudClient{
         private cw:AWS.CloudWatchLogs;
 
         constructor(config:IAwsConfig){
