@@ -5,7 +5,7 @@ export namespace GoogleCloud{
         
         constructor(){ }
 
-        listLogGroups(){
+        listGroups(){
             
         }
     }

@@ -4,7 +4,7 @@ export namespace AzureCloud{
         
         constructor(){ }
 
-        listLogGroups(){
+        listGroups(){
             
         }
     }

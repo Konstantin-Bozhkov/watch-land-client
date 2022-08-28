@@ -1,30 +1,38 @@
 import * as AWS from 'aws-sdk';
+import { IAwsConfig } from '../specs';
 export namespace AWSCloud{
     
     export class AwsClient{
         private cw:AWS.CloudWatchLogs;
 
-        constructor(){
-            // Set the region 
-            AWS.config.update({region: 'eu-west-1'});
+        constructor(config:IAwsConfig){
+            // AWS configuration options
+            AWS.config.update(config.options as AWS.ConfigurationOptions);            
+            if(config.credentials){
+                const credentials = new AWS.SharedIniFileCredentials(config.credentials);
+                AWS.config.update({credentials:credentials})
+            }
             // Set up cloudwatch
             this.cw = new AWS.CloudWatchLogs()
         }
 
-        listLogGroups(){
-            const params:AWS.CloudWatchLogs.DescribeLogGroupsRequest = {
-                limit:25
+        async listGroups(limit:number, nextToken:string = ''):Promise<any[]>{
+            let params:AWS.CloudWatchLogs.DescribeLogGroupsRequest = {
+                "limit": limit              
             }
-            this.cw.describeLogGroups(params, (err:AWS.AWSError, data:AWS.CloudWatchLogs.DescribeLogGroupsRequest)=>{
-                if (err) {
-                    console.log("Error", err);
-                } else {
-                    console.log("Success", data);
-                }
-            })
+            // Add nextToken key to the params if supplied
+            if(nextToken != '') params.nextToken = nextToken;
+
+            let awslogGroups = await this.cw.describeLogGroups(params).promise()
+            let keys = Object.keys(awslogGroups);  
+            
+            let groups:AWS.CloudWatchLogs.LogGroup[] = [].concat(awslogGroups.logGroups as []);
+            
+            // Keep calling list groups untill all groups are fetched
+            if(keys.includes('nextToken')){
+                groups = groups.concat( await this.listGroups(limit, awslogGroups.nextToken))
+            }
+            return groups
         }
-
     }
-
-    
 }
