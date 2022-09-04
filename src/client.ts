@@ -45,6 +45,7 @@ class WatchLand{
         return streams
     }
     
+    
     /**
      * 
      * @param group Group name
@@ -54,3 +55,38 @@ class WatchLand{
         yield* this.provider.listLogEvents(group, streams, { ...filters })
     }
 }
+
+
+const config:IAwsConfig = { 
+    credentials:{
+        profile:'kos'
+    },
+    options:{         
+        region:'eu-west-1' 
+    }
+}
+
+const client = new WatchLand(CloudProvider.AWS, config)
+
+
+// const groups = client.groups(1).then((groups)=>{
+//     console.log('Groups: ', groups)
+// });
+
+// const streams = client.streams('/aws/lambda/test').then((streams)=>{
+//     console.log('Streams: ', streams)
+// })
+
+// const logMe = async ()=>{
+//     const group = '/aws/lambda/test';
+//     const streams = ['2022/05/23/[$LATEST]887be0e64f9e4b1f863665a72c32507a']
+//     const log = await client.logs(group, streams, {
+//         limit:200
+//     })
+//     setInterval(async()=>{
+//         let next = await log.next()
+//         console.log('Valu: ',next.value)
+//     }, 1000)
+// }
+
+// logMe()
