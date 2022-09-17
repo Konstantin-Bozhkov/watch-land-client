@@ -1,6 +1,6 @@
 {
   "name": "watch-land-ts-client",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Simple Javascript client for quering logs from AWS, Azure and Google Cloud",
   "main": "dist/client.js",
   "scripts": {
