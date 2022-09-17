@@ -55,15 +55,3 @@ class WatchLand{
         yield* this.provider.listLogEvents(group, streams, { ...filters })
     }
 }
-
-
-const config:IAwsConfig = { 
-    credentials:{
-        profile:'kos'
-    },
-    options:{         
-        region:'eu-west-1' 
-    }
-}
-
-const client = new WatchLand(CloudProvider.AWS, config)
