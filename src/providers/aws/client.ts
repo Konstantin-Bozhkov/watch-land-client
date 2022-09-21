@@ -14,7 +14,12 @@ export class AwsClient{
         for(const config of configs) this.addWatcher(config);
     };
 
-    addWatcher(config:IAwsConfig){
+    /**
+     * 
+     * @param config 
+     * Adds a new AWS CloudWatch instance for monitoring
+     */
+    addWatcher(config:IAwsConfig):void{
         let watcher = new AwsWatcher(config);
         let currentWatchers = this.listWatchers()
         let wKey = config.credentials?.profile || 'custom';
@@ -28,10 +33,20 @@ export class AwsClient{
             "watcher":watcher
         })
     };
-    getWatcher(key:string){
+
+    /**
+     * 
+     * @param key 
+     * @returns Retrieve a CloudWatch instance
+     */
+    getWatcher(key:string):IAwsWatchers|undefined{
         return this.watchers.find((watcher:IAwsWatchers)=>watcher.key === key)
     }
-    listWatchers(){
+    /**
+     * 
+     * @returns List of keys for all CloudWatch instance
+     */
+    listWatchers():string[]{
         const watchers:string[] = []
         for(const watcher of this.watchers){
             watchers.push(watcher.key)
