@@ -1,24 +1,30 @@
 import * as AWS from 'aws-sdk';
-import { IAwsConfig, ICloudClient, ILogsFilter } from '../specs';
+import { IAWSClient, ICloudWatchConfig, ILogsFilter } from './specs';
 
-export class AwsWatcher implements ICloudClient{
+
+export class AwsWatcher implements IAWSClient{
     private cw:AWS.CloudWatchLogs;
-
+    private config:ICloudWatchConfig = {};
     /**
      * 
      * @param config 
      */
-    constructor(config:IAwsConfig){
-        // AWS configuration options
-        AWS.config.update(config.options as AWS.ConfigurationOptions);            
-        if(config.credentials){
-            const credentials = new AWS.SharedIniFileCredentials(config.credentials);
+    constructor(config:ICloudWatchConfig){
+        const configOptions = config.endpoint ? { endpoint:config.endpoint}:undefined
+        AWS.config.update(config.options ? config.options : {});   
+
+        if(config.sharedCreds){
+            const credentials = new AWS.SharedIniFileCredentials(config.sharedCreds);
             AWS.config.update({credentials:credentials})
         }
+        this.config = config;
         // Set up cloudwatch
-        this.cw = new AWS.CloudWatchLogs()
+        this.cw = new AWS.CloudWatchLogs(configOptions)
     }
-
+    getConfig(){
+        console.log('Config')
+        return this.config
+    }
     /**
      * 
      * @param prefix Prefix for of the log groups to fetch

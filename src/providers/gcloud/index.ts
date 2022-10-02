@@ -1,0 +1,1 @@
+export { gCloudClient as Client } from "./client"

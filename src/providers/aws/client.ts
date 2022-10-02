@@ -1,16 +1,18 @@
 import * as AwsSdk from 'aws-sdk';
-import { IAwsConfig } from '../specs';
+import { ICloudWatchConfig } from './specs';
 import { AwsWatcher } from './watcher';
 
 interface IAwsWatchers{
     key:string
     watcher:AwsWatcher
 }
+
     
 export class AwsClient{
     private watchers:IAwsWatchers[] = [];
 
-    constructor(configs:IAwsConfig[]){
+    constructor(configs?:ICloudWatchConfig[]){
+        if(!configs) return;
         for(const config of configs) this.addWatcher(config);
     };
 
@@ -19,10 +21,10 @@ export class AwsClient{
      * @param config 
      * Adds a new AWS CloudWatch instance for monitoring
      */
-    addWatcher(config:IAwsConfig):void{
+    addWatcher(config:ICloudWatchConfig):void{
         let watcher = new AwsWatcher(config);
         let currentWatchers = this.listWatchers()
-        let wKey = config.credentials?.profile || 'custom';
+        let wKey = config.sharedCreds?.profile || 'custom';
         
         // Abort
         if(currentWatchers.includes(wKey)){
