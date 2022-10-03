@@ -1,9 +1,12 @@
 import { HTTPOptions } from "aws-sdk/lib/config-base"
-
 export interface IAWSClient{
     listGroups(prefix?:string):Promise<any[]>
     listStreams(prefix?:string):Promise<any[]>
     listLogEvents(group:string, streams:string[], filters?:ILogsFilter, next?:string|undefined):any
+}
+
+export interface IWatcherGroup extends AWS.CloudWatchLogs.LogGroup{
+    tag?:string
 }
 
 export interface IAWSSharedCredentials{
@@ -16,8 +19,13 @@ export interface IAWSSharedCredentials{
 }
 
 export interface ICloudWatchConfig{
+    /* Optional for identifing the CloudWatch instance */
+    tag?:string
+    /* AWS config */
     options?:AWS.ConfigurationOptions
+    /** AWS shared credentials */
     sharedCreds?:IAWSSharedCredentials
+    /** Optional for setting localstack */
     endpoint?:string
 }
 

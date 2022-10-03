@@ -2,22 +2,38 @@ import * as Watchland from '.';
 
 const CloudWatch = new Watchland.CloudWatch.Client()
 
-const config:Watchland.CloudWatch.Specs.ICloudWatchConfig = {
+const config1:Watchland.CloudWatch.Specs.ICloudWatchConfig = {
     "options":{ region:'eu-west-1' },
-    "sharedCreds":{ profile:"kos" }
+    "sharedCreds":{ profile:"kos" },
+    // "endpoint":"http://localhost:4572/"
 }
-CloudWatch.addWatcher(config)
+const config2:Watchland.CloudWatch.Specs.ICloudWatchConfig = {
+    "options":{ region:'eu-west-1' },
+    "sharedCreds":{ profile:"7eleven" },
+    // "endpoint":"http://localhost:4572/"
+}
+CloudWatch.addWatcher(config1)
+CloudWatch.addWatcher(config2)
 
-const awsWatcher = new Watchland.CloudWatch.Watcher(config)
-console.log(awsWatcher.getConfig())
 const list = CloudWatch.listWatchers()
 const retrive = CloudWatch.getWatcher('kos')
-const groups = retrive?.watcher.listGroups()
-// console.log(list)
-console.log('Config ',retrive?.watcher.getConfig())
 
-retrive?.watcher.listGroups().then((groups)=>{
-    console.log(groups)
-}).catch((err)=>{
-    console.log('err', err)
+// console.log(list)
+const combine = false
+// const groups = retrive?.watcher.listGroups()
+const groups = CloudWatch.groups().then((logGroups)=>{
+    // console.log(logGroups)
+
+    // for(const group of logGroups){
+    //     console.log(group)
+    // }
 })
+
+// console.log(retrive?.watcher)
+// console.log('Config ',retrive?.watcher.getConfig())
+
+// retrive?.watcher.listGroups().then((groups)=>{
+//     console.log(groups)
+// }).catch((err)=>{
+//     console.log('err', err)
+// })

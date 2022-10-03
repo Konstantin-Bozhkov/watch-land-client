@@ -1,36 +1,61 @@
 import * as AWS from 'aws-sdk';
-import { IAWSClient, ICloudWatchConfig, ILogsFilter } from './specs';
+import { randomName } from '../utils';
+import { IAWSClient, ICloudWatchConfig, ILogsFilter, IWatcherGroup } from './specs';
 
 
 export class AwsWatcher implements IAWSClient{
+    public tag:string;
     private cw:AWS.CloudWatchLogs;
     private config:ICloudWatchConfig = {};
+    
     /**
      * 
      * @param config 
      */
     constructor(config:ICloudWatchConfig){
-        const configOptions = config.endpoint ? { endpoint:config.endpoint}:undefined
+        const configOptions = config.endpoint ? { endpoint:(config.endpoint)}:undefined
+        
         AWS.config.update(config.options ? config.options : {});   
 
         if(config.sharedCreds){
             const credentials = new AWS.SharedIniFileCredentials(config.sharedCreds);
             AWS.config.update({credentials:credentials})
         }
+        // Save the config for future refence
         this.config = config;
-        // Set up cloudwatch
+
+        // Tag the CloudWatch instance
+        this.tag = this._getTag()
+        
+        // Set up CloudWatch
         this.cw = new AWS.CloudWatchLogs(configOptions)
     }
+    /**
+     * 
+     * @returns 
+     * Returns the initial config of the instance
+     */
     getConfig(){
-        console.log('Config')
-        return this.config
+        return this.cw.config
+    }
+
+    /**
+     * 
+     * @returns 
+     * Get a for the instance. If no tag or profile was supplied to the Watcher config
+     * the tag will be a random generated name
+     */
+    private _getTag(){
+        const tag = this.config.tag ? this.config.tag : this.config.sharedCreds?.profile || randomName();
+        return tag
     }
     /**
      * 
      * @param prefix Prefix for of the log groups to fetch
      * @returns 
+     * A list of all groups in the AWS account
      */
-    async listGroups(prefix:string = ''):Promise<any[]>{
+    async listGroups(prefix:string = ''):Promise<IWatcherGroup[]>{
         const params:AWS.CloudWatchLogs.DescribeLogGroupsRequest = {
             limit:50
         }
@@ -44,16 +69,16 @@ export class AwsWatcher implements IAWSClient{
      * @param group Group name
      * @param prefix Prefix for the streams to fetch
      * @returns 
+     * A list of all streams for a given group in the AWS account
      */
      async listStreams(group:string, prefix:string = ''){
         const params:AWS.CloudWatchLogs.DescribeLogStreamsRequest = {
             logGroupName: group, /* required */
             descending: true,
         };
-        // Add the stream prefix if passed as argument
+        // Add the stream prefix if passed as an argument
         if(prefix != '') params.logStreamNamePrefix = prefix;
         const streams = this._fetchStreams(params)
-        console.log('Stre' , streams)
         return streams
     }
 
@@ -91,13 +116,14 @@ export class AwsWatcher implements IAWSClient{
      */
     private async _fetchGroups(params: AWS.CloudWatchLogs.DescribeLogGroupsRequest){
         let awslogGroups = await this.cw.describeLogGroups(params).promise()
-        let groups:AWS.CloudWatchLogs.LogGroup[] = [].concat(awslogGroups.logGroups as []);
+        let groups:IWatcherGroup[] = [].concat(awslogGroups.logGroups as []);
         let keys = Object.keys(awslogGroups);
         // Keep calling list groups untill all groups are fetched
         if(keys.includes('nextToken')){
             params.nextToken = awslogGroups.nextToken;
             groups = groups.concat( await this._fetchGroups(params))
         }
+        groups.forEach((group:IWatcherGroup)=>group.tag = this.tag)
         return groups
     }
   
@@ -124,7 +150,7 @@ export class AwsWatcher implements IAWSClient{
      * @param keys 
      * @returns 
      */
-    async _fetchLogs(params:AWS.CloudWatchLogs.FilterLogEventsRequest, keys:string[]){
+    private async _fetchLogs(params:AWS.CloudWatchLogs.FilterLogEventsRequest, keys:string[]){
         const awsLogs = await this.cw.filterLogEvents(params).promise();
         const resKeys = Object.keys(awsLogs);
         return [ awsLogs.events, awsLogs.nextToken, resKeys]
