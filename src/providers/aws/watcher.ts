@@ -1,13 +1,13 @@
 import * as AWS from 'aws-sdk';
+import { Watch } from '../../lib/watch';
 import { randomName } from '../utils';
-import { IAWSClient, ICloudWatchConfig, ILogsFilter, IWatcherGroup } from './specs';
+import { IAWSClient, ICloudWatchConfig, ILogsFilter, IWatcherGroup, IWathcherStream } from './specs';
 
-
-export class AwsWatcher implements IAWSClient{
+export class AwsWatcher{
     public tag:string;
     private cw:AWS.CloudWatchLogs;
     private config:ICloudWatchConfig = {};
-    
+    private rate:number = 1000;
     /**
      * 
      * @param config 
@@ -39,6 +39,10 @@ export class AwsWatcher implements IAWSClient{
         return this.cw.config
     }
 
+    refreshRate(rate:number){
+        this.rate = rate;
+    }
+
     /**
      * 
      * @returns 
@@ -49,21 +53,56 @@ export class AwsWatcher implements IAWSClient{
         const tag = this.config.tag ? this.config.tag : this.config.sharedCreds?.profile || randomName();
         return tag
     }
+
+    private mutator(watch:Watch, generator:AsyncGenerator):NodeJS.Timer{
+        const mutator:NodeJS.Timer = setInterval(async ()=>{
+            const data = await generator.next()
+            if(data.value != undefined && data.value.length > 0){
+                watch.resolve(data.value);
+            }
+            if(data.done === true){
+                clearInterval(mutator)
+            }
+        }, this.rate) 
+        return mutator
+    }
     /**
      * 
      * @param prefix Prefix for of the log groups to fetch
      * @returns 
      * A list of all groups in the AWS account
+     */    
+    groups(prefix?:string):Watch{
+        const watch = new Watch();
+        const groups = this._groups(prefix)
+        this.mutator(watch, groups);
+        return watch
+    }
+
+    /**
+     * 
+     * @param prefix 
      */
-    async listGroups(prefix:string = ''):Promise<IWatcherGroup[]>{
-        const params:AWS.CloudWatchLogs.DescribeLogGroupsRequest = {
-            limit:50
+    private async *_groups(prefix?:string){
+        let groups:IWatcherGroup[] = [];
+        
+        let params:AWS.CloudWatchLogs.DescribeLogGroupsRequest = {
+            logGroupNamePrefix:prefix,
+            nextToken: undefined,
+        };
+
+        do{
+            let LogGroups = await this.cw.describeLogGroups(params).promise()
+            groups = [].concat(LogGroups.logGroups as []);
+            params.nextToken = LogGroups.nextToken
+            // Tag the groups with the watcher
+            groups.forEach((group:IWatcherGroup)=>group.tag = this.tag)
+            yield groups
         }
-        if(prefix != '') params.logGroupNamePrefix = prefix;
-        const groups = this._fetchGroups(params)
-        return groups
+        while(params.nextToken)
     }
     
+
     /**
      * 
      * @param group Group name
@@ -71,15 +110,33 @@ export class AwsWatcher implements IAWSClient{
      * @returns 
      * A list of all streams for a given group in the AWS account
      */
-     async listStreams(group:string, prefix:string = ''){
-        const params:AWS.CloudWatchLogs.DescribeLogStreamsRequest = {
+    streams(group:string, prefix?:string|undefined):Watch{
+        const watch = new Watch();
+        const streams = this._streams(group, prefix)        
+        this.mutator(watch, streams);
+        return watch;
+    }
+
+    private async *_streams(group:string, prefix?:string|undefined){
+        let streams:IWathcherStream[] = [];
+        
+        let params:AWS.CloudWatchLogs.DescribeLogStreamsRequest = {
             logGroupName: group, /* required */
             descending: true,
+            nextToken: undefined,
+            limit:1,
+            logStreamNamePrefix: prefix
         };
-        // Add the stream prefix if passed as an argument
-        if(prefix != '') params.logStreamNamePrefix = prefix;
-        const streams = this._fetchStreams(params)
-        return streams
+        
+        do{    
+            let LogStreams = await this.cw.describeLogStreams(params).promise()
+            streams = [].concat(LogStreams.logStreams as []);
+            params.nextToken = LogStreams.nextToken
+            // Tag the streams with the watcher
+            streams.forEach((stream:IWathcherStream)=>stream.tag = this.tag)
+            yield streams
+        }
+        while(params.nextToken)
     }
 
     /**
@@ -87,72 +144,42 @@ export class AwsWatcher implements IAWSClient{
      * @param group 
      * @param streams 
      * @param filters 
-     * @param next 
+     * @returns 
      */
-    async *listLogEvents (group:string, streams:string[], filters?:ILogsFilter, next?:string|undefined ){
+    logs(group:string, streams:string[], filters?:ILogsFilter):Watch{
+        const watch = new Watch();
+        const logs = this._logs(group, streams, filters)        
+        this.mutator(watch, logs);
+        return watch;
+    }
+
+    /**
+     * 
+     * @param group 
+     * @param streams 
+     * @param filters 
+     * @return AsyncGenerator
+     */
+    private async *_logs(group:string, streams:string[], filters?:ILogsFilter){
+        let logs:AWS.CloudWatchLogs.FilteredLogEvents[] = [];
         const params:AWS.CloudWatchLogs.FilterLogEventsRequest = {
             logGroupName: group,
             limit: filters?.limit,
-            logStreamNames: streams,                
+            logStreamNames: streams,
             filterPattern: filters?.pattern,
             endTime: filters?.end,
             startTime: filters?.start,
-            nextToken:next
+            nextToken:undefined
         };
-        let [ logs, nextToken, keys ] = await this._fetchLogs(params, [])
-        yield logs;
 
-        while(keys && keys.includes('nextToken')){
-            params.nextToken = nextToken as string;
-            [ logs, nextToken, keys ] = await this._fetchLogs(params, keys as string[]);
-            yield logs;
+        do{
+            const LogEvents = await this.cw.filterLogEvents(params).promise();
+            logs = [].concat(LogEvents.events as []);
+            params.nextToken = LogEvents.nextToken
+            // Tag the streams with the watcher
+            // logs.forEach((log:AWS.CloudWatchLogs.FilteredLogEvents)=>log.tag = this.tag)
+            yield logs
         }
-    }
-    
-    /**
-     * 
-     * @param params 
-     * @returns 
-     */
-    private async _fetchGroups(params: AWS.CloudWatchLogs.DescribeLogGroupsRequest){
-        let awslogGroups = await this.cw.describeLogGroups(params).promise()
-        let groups:IWatcherGroup[] = [].concat(awslogGroups.logGroups as []);
-        let keys = Object.keys(awslogGroups);
-        // Keep calling list groups untill all groups are fetched
-        if(keys.includes('nextToken')){
-            params.nextToken = awslogGroups.nextToken;
-            groups = groups.concat( await this._fetchGroups(params))
-        }
-        groups.forEach((group:IWatcherGroup)=>group.tag = this.tag)
-        return groups
-    }
-  
-    /**
-     * 
-     * @param params 
-     * @returns 
-     */
-    private async _fetchStreams(params: AWS.CloudWatchLogs.DescribeLogStreamsRequest){
-        let awsStreams = await this.cw.describeLogStreams(params).promise()
-        let streams:AWS.CloudWatchLogs.LogStreams[] = [].concat(awsStreams.logStreams as []);
-        let keys = Object.keys(awsStreams);
-        // Keep fetching the streams untill all streams are fetched
-        if(keys.includes('nextToken')){
-            params.nextToken = awsStreams.nextToken;
-            streams = streams.concat( await this._fetchStreams(params))
-        }
-        return streams
-    }
-
-    /**
-     * 
-     * @param params 
-     * @param keys 
-     * @returns 
-     */
-    private async _fetchLogs(params:AWS.CloudWatchLogs.FilterLogEventsRequest, keys:string[]){
-        const awsLogs = await this.cw.filterLogEvents(params).promise();
-        const resKeys = Object.keys(awsLogs);
-        return [ awsLogs.events, awsLogs.nextToken, resKeys]
+        while(params.nextToken)
     }
 }

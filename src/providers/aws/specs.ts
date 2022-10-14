@@ -1,14 +1,16 @@
-import { HTTPOptions } from "aws-sdk/lib/config-base"
+import { HTTPOptions } from "aws-sdk/lib/config-base";
 export interface IAWSClient{
-    listGroups(prefix?:string):Promise<any[]>
-    listStreams(prefix?:string):Promise<any[]>
-    listLogEvents(group:string, streams:string[], filters?:ILogsFilter, next?:string|undefined):any
+    groups(prefix?:string|undefined):Promise<any[]>
+    streams(groups:string, prefix?:string|undefined):Promise<any[]>
+    logs(group:string, streams:string[], filters?:ILogsFilter, next?:string|undefined):any
 }
 
 export interface IWatcherGroup extends AWS.CloudWatchLogs.LogGroup{
     tag?:string
 }
-
+export interface IWathcherStream extends AWS.CloudWatchLogs.LogStreams{
+    tag?:string
+}
 export interface IAWSSharedCredentials{
     profile?: string
     filename?: string
