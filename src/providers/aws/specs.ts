@@ -3,13 +3,23 @@ export interface IAWSClient{
     groups(prefix?:string|undefined):Promise<any[]>
     streams(groups:string, prefix?:string|undefined):Promise<any[]>
     logs(group:string, streams:string[], filters?:ILogsFilter, next?:string|undefined):any
+}  
+
+
+export interface IClientLogs{
+    group:string
+    streams?:string[]
 }
 
 export interface IWatcherGroup extends AWS.CloudWatchLogs.LogGroup{
     tag?:string
 }
-export interface IWathcherStream extends AWS.CloudWatchLogs.LogStreams{
+export interface IWatcherStream extends AWS.CloudWatchLogs.LogStreams{
     tag?:string
+}
+export interface IWatcherLog extends AWS.CloudWatchLogs.FilteredLogEvents{
+    tag?:string
+    group?:string
 }
 export interface IAWSSharedCredentials{
     profile?: string

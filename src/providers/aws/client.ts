@@ -1,5 +1,7 @@
-import * as AwsSdk from 'aws-sdk';
-import { ICloudWatchConfig, IWatcherGroup } from './specs';
+
+import { mutator } from '../../lib/mutator';
+import { Watch } from '../../lib/watch';
+import { IClientLogs, ICloudWatchConfig, ILogsFilter } from './specs';
 import { AwsWatcher } from './watcher';
 
 export class AwsClient{
@@ -8,7 +10,7 @@ export class AwsClient{
     constructor(configs?:ICloudWatchConfig[]){
         if(!configs) return;
         for(const config of configs) this.addWatcher(config);
-    };
+    }
 
     /**
      * 
@@ -34,6 +36,7 @@ export class AwsClient{
     getWatcher(key:string):AwsWatcher|undefined{
         return this.watchers.find((watcher:AwsWatcher)=>watcher.tag === key)
     }
+    
     /**
      * 
      * @returns List of keys for all CloudWatch instance
@@ -47,13 +50,37 @@ export class AwsClient{
      * @returns 
      * Get groups from all Watchers(CloudWatch instances)
      */
-    async groups(combineGroups:boolean = false):Promise<IWatcherGroup[]>{
-        let groups:IWatcherGroup[] = []
+    groups(prefix?:string):Watch{
+        const watch = new Watch();
         for(const watcher of this.watchers){
-            const watcherGroups= await watcher.listGroups()
-            groups = [...groups,...watcherGroups]
+            const groups = watcher.groupsGenerator(prefix)
+            mutator(watch, groups, 1000);
         }
-        return groups;
+        return watch;
+    }
+
+    streams(groups:string[], prefix?:string){
+        const watch = new Watch();
+
+        for(const watcher of this.watchers){
+            for(const group of groups){
+                const streams = watcher.streamsGenerator(group, prefix)
+                mutator(watch, streams, 1000);
+            }
+        }
+        return watch;
+    }
+
+    logs(groups:IClientLogs[], filters?:ILogsFilter){
+        const watch = new Watch();
+        for(const watcher of this.watchers){
+            for(const group of groups){
+                console.log('----')
+                const logs = watcher.logsGenerator(group.group, group.streams, filters)
+                mutator(watch, logs, 1000);
+            }
+        }
+        return watch;
     }
 };
 
