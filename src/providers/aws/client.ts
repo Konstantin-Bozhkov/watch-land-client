@@ -75,7 +75,6 @@ export class AwsClient{
         const watch = new Watch();
         for(const watcher of this.watchers){
             for(const group of groups){
-                console.log('----')
                 const logs = watcher.logsGenerator(group.group, group.streams, filters)
                 mutator(watch, logs, 1000);
             }

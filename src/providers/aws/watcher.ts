@@ -5,10 +5,18 @@ import { randomName } from '../utils';
 import { IAWSClient, ICloudWatchConfig, ILogsFilter, IWatcherGroup, IWatcherStream, IWatcherLog } from './specs';
 
 export class AwsWatcher{
+    /* Internal instance name for idendification */
     public tag:string;
-    private cw:AWS.CloudWatchLogs;
-    private config:ICloudWatchConfig = {};
-    private rate:number = 1000;
+
+    /* AWS CloudWatch SDK instance */    
+    private _cw:AWS.CloudWatchLogs;
+
+    /* SDK configuration */
+    private _config:ICloudWatchConfig = {};
+    
+    /* Requests rate to prevent throttling */
+    private _rate:number = 1000;
+
     /**
      * 
      * @param config 
@@ -23,13 +31,13 @@ export class AwsWatcher{
             AWS.config.update({credentials:credentials})
         }
         // Save the config for future refence
-        this.config = config;
+        this._config = config;
 
         // Tag the CloudWatch instance
-        this.tag = this._getTag()
+        this.tag = this._generateTag()
         
         // Set up CloudWatch
-        this.cw = new AWS.CloudWatchLogs(configOptions)
+        this._cw = new AWS.CloudWatchLogs(configOptions)
     }
     /**
      * 
@@ -37,11 +45,18 @@ export class AwsWatcher{
      * Returns the initial config of the instance
      */
     getConfig(){
-        return this.cw.config
+        return this._cw.config
     }
-
+    
+    /**
+     * 
+     * @param rate
+     * Sets AWS API requests per second
+     * Note that AWS have limitation on API requests per second for region and account, when the rate is exceeded
+     * all further requests are throttled. Recomended Wathcland request rate 1000ms 
+     */
     refreshRate(rate:number){
-        this.rate = rate;
+        this._rate = rate;
     }
 
     /**
@@ -50,8 +65,8 @@ export class AwsWatcher{
      * Get a for the instance. If no tag or profile was supplied to the Watcher config
      * the tag will be a random generated name
      */
-    private _getTag(){
-        const tag = this.config.tag ? this.config.tag : this.config.sharedCreds?.profile || randomName();
+    private _generateTag(){
+        const tag = this._config.tag ? this._config.tag : this._config.sharedCreds?.profile || randomName();
         return tag
     }
     /**
@@ -63,7 +78,7 @@ export class AwsWatcher{
     groups(prefix?:string):Watch{
         const watch = new Watch();
         const groups = this.groupsGenerator(prefix)
-        mutator(watch, groups, this.rate);
+        mutator(watch, groups, this._rate);
         return watch
     }
 
@@ -80,7 +95,7 @@ export class AwsWatcher{
         };
 
         do{
-            let LogGroups = await this.cw.describeLogGroups(params).promise()
+            let LogGroups = await this._cw.describeLogGroups(params).promise()
             groups = [].concat(LogGroups.logGroups as []);
             params.nextToken = LogGroups.nextToken
             // Tag the groups with the watcher
@@ -101,7 +116,7 @@ export class AwsWatcher{
     streams(group:string, prefix?:string|undefined):Watch{
         const watch = new Watch();
         const streams = this.streamsGenerator(group, prefix)        
-        mutator(watch, streams, this.rate);
+        mutator(watch, streams, this._rate);
         return watch;
     }
 
@@ -116,7 +131,7 @@ export class AwsWatcher{
         };
         
         do{    
-            let LogStreams = await this.cw.describeLogStreams(params).promise()
+            let LogStreams = await this._cw.describeLogStreams(params).promise()
             streams = [].concat(LogStreams.logStreams as []);
             params.nextToken = LogStreams.nextToken
             // Tag the streams with the watcher
@@ -136,7 +151,7 @@ export class AwsWatcher{
     logs(group:string, streams?:string[], filters?:ILogsFilter):Watch{
         const watch = new Watch();
         const logs = this.logsGenerator(group, streams, filters)        
-        mutator(watch, logs, this.rate);
+        mutator(watch, logs, this._rate);
         return watch;
     }
 
@@ -161,7 +176,7 @@ export class AwsWatcher{
         };
 
         do{
-            const LogEvents = await this.cw.filterLogEvents(params).promise();
+            const LogEvents = await this._cw.filterLogEvents(params).promise();
             logs = [].concat(LogEvents.events as []);
             params.nextToken = LogEvents.nextToken
             // Tag the logs with the watcher
