@@ -60,6 +60,16 @@ export class AwsWatcher{
     }
 
     /**
+     * Throws an error if the connection fail
+     * @returns 
+     */
+     async checkConnection(){
+        let params:AWS.CloudWatchLogs.DescribeLogGroupsRequest = { limit:1 };
+        await this._cw.describeLogGroups(params).promise()
+        return true
+    }
+    
+    /**
      * 
      * @returns 
      * Get a for the instance. If no tag or profile was supplied to the Watcher config

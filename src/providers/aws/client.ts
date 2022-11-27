@@ -17,7 +17,7 @@ export class AwsClient{
      * @param config 
      * Adds a new AWS CloudWatch instance for monitoring
      */
-    addWatcher(config:ICloudWatchConfig):void{
+    async addWatcher(config:ICloudWatchConfig):Promise<void>{
         let watcher = new AwsWatcher(config);
         let currentWatchers = this.listWatchers()
         
@@ -25,8 +25,23 @@ export class AwsClient{
         if(currentWatchers.includes(watcher.tag)){
             throw new Error('Watcher with that key is already included')
         };
-        this.watchers.push(watcher)
+        
+        let connected = await watcher.checkConnection()
+        
+        // Connection success
+        if(connected){
+            this.watchers.push(watcher)
+        }
     };
+
+    /**
+     * @param tag 
+     * Remove the AWS watcher 
+     */
+    removeWatcher(tag:string):void {
+        this.watchers = this.watchers.filter((watcher:AwsWatcher)=> watcher.tag !== tag);
+    }
+
 
     /**
      * 
