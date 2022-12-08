@@ -23,6 +23,7 @@ import { Watch } from "./watch";
         }
         if(data.done === true){
             clearInterval(mutator)
+            watch.complete()
         }
     }, rate) 
     return mutator
